@@ -1,15 +1,182 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020617;
+  --foreground: #f8fafc;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  background: var(--background);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family:
+    "Avenir Next", "Trebuchet MS", Arial, sans-serif;
+  font-weight: 500;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.country-flag-button {
+  box-shadow:
+    0 0 0 1px rgba(103, 232, 249, 0.12),
+    0 20px 60px rgba(8, 145, 178, 0.12);
+}
+
+.country-flag-art {
+  display: block;
+  width: 78%;
+  max-height: 62%;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  filter: drop-shadow(0 16px 24px rgba(2, 6, 23, 0.36));
+}
+
+.country-flag-emoji {
+  font-size: 8rem;
+  line-height: 1;
+}
+
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(8, 47, 73, 0.16), transparent 22rem),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 0.98));
+  pointer-events: none;
+}
+
+.site-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+  opacity: 0.55;
+}
+
+.loadscreen {
+  background: #040211;
+  isolation: isolate;
+}
+
+.loadscreen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(36, 197, 226, 0.12), transparent 22%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: auto, 4px 4px, 4px 4px;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.loadscreen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.035) 0,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 6px
+    ),
+    radial-gradient(circle at 50% 50%, transparent 0 22%, rgba(0, 0, 0, 0.34) 74%);
+  mix-blend-mode: screen;
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.loadscreen-title,
+.loadscreen-percent {
+  text-shadow:
+    0 0 10px rgba(125, 229, 255, 0.45),
+    2px 0 0 rgba(255, 67, 164, 0.18),
+    -2px 0 0 rgba(73, 219, 255, 0.2);
+}
+
+.loadscreen-title {
+  letter-spacing: 0.08em;
+}
+
+.loadscreen-bar {
+  box-shadow:
+    0 0 0 1px rgba(146, 198, 215, 0.24),
+    0 0 16px rgba(64, 195, 224, 0.28),
+    inset 0 0 12px rgba(0, 0, 0, 0.78);
+}
+
+.loadscreen-bar-fill {
+  background:
+    linear-gradient(90deg, rgba(77, 195, 223, 0.88), rgba(92, 215, 240, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0 1px, transparent 1px 28px);
+  box-shadow:
+    0 0 14px rgba(72, 200, 229, 0.72),
+    inset 0 0 10px rgba(255, 255, 255, 0.24);
+  transition: width 100ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.loadscreen-data {
+  position: absolute;
+  z-index: 1;
+  width: 4.8rem;
+  height: 3.2rem;
+  opacity: 0.18;
+  background:
+    repeating-linear-gradient(0deg, rgba(98, 222, 255, 0.52) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(90deg, rgba(98, 222, 255, 0.26) 0 1px, transparent 1px 8px);
+  filter: blur(0.4px);
+}
+
+.loadscreen-data-left {
+  left: 11%;
+  top: 28%;
+}
+
+.loadscreen-data-left-low {
+  left: 14%;
+  top: 48%;
+}
+
+.loadscreen-data-right {
+  right: 19%;
+  top: 31%;
+}
+
+.loadscreen-data-right-low {
+  right: 23%;
+  top: 66%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
