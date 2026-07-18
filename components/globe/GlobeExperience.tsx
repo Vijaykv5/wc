@@ -110,6 +110,8 @@ function insightFallback(country: string): CountryInsight {
 }
 
 function FixtureRow({ fixture, tone }: { fixture: CountryFixture; tone: "recent" | "upcoming" }) {
+  const canViewStory = tone === "recent" && fixture.homeScore !== null && fixture.awayScore !== null;
+
   return (
     <article className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
       <div className="flex items-start justify-between gap-3">
@@ -127,7 +129,17 @@ function FixtureRow({ fixture, tone }: { fixture: CountryFixture; tone: "recent"
           {matchScore(fixture)}
         </span>
       </div>
-      <p className="mt-3 font-mono text-xs font-bold tabular-nums text-white/48">{formatMatchTime(fixture.startTime)}</p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="font-mono text-xs font-bold tabular-nums text-white/48">{formatMatchTime(fixture.startTime)}</p>
+        {canViewStory ? (
+          <Link
+            href={`/story/match/${encodeURIComponent(fixture.id)}`}
+            className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-[#f7b733] px-3 text-xs font-black text-black transition-colors hover:bg-[#fcd34d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          >
+            View Data
+          </Link>
+        ) : null}
+      </div>
     </article>
   );
 }
