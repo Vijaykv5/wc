@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { GlobeMethods } from "react-globe.gl";
 import { ATLAS_MEMORIES, getCountryFanStats, getCountryFlag, normalizeCountry, resolveAtlasCountrySearch } from "@/lib/atlas-globe-data";
+import { shortAddress, type MintedMemory } from "@/lib/memory-passport";
 import { AtlasModeSwitch } from "@/components/globe/AtlasModeSwitch";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
@@ -77,6 +78,13 @@ function formatMatchTime(startTime?: number) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(startTime));
+}
+
+function formatMemoryTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function matchScore(fixture: CountryFixture) {
@@ -226,6 +234,73 @@ function CountryInsightPanel({
   );
 }
 
+function CountryMemoryRail({
+  country,
+  memories,
+  loading,
+}: {
+  country: string;
+  memories: MintedMemory[];
+  loading: boolean;
+}) {
+  if (!loading && memories.length === 0) return null;
+
+  return (
+    <aside className="pointer-events-auto fixed left-4 top-28 z-20 hidden w-[21rem] lg:block">
+      <section className="rounded-2xl border border-white/12 bg-[#05070d]/66 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl" aria-busy={loading}>
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f7b733]">Fan Memories</p>
+            <h2 className="mt-1 truncate text-lg font-black uppercase text-white">
+              {country} <span aria-hidden="true">{getCountryFlag(country)}</span>
+            </h2>
+          </div>
+          {loading ? <span className="h-2 w-2 rounded-full bg-[#f7b733]" aria-hidden="true" /> : null}
+        </div>
+
+        {loading ? (
+          <div className="mt-3 grid gap-2">
+            <div className="h-24 animate-pulse rounded-xl bg-white/[0.06]" />
+            <div className="h-24 animate-pulse rounded-xl bg-white/[0.04]" />
+          </div>
+        ) : (
+          <div className="mt-3 grid max-h-[56vh] gap-2 overflow-auto pr-1">
+            {memories.slice(0, 6).map((memory) => (
+              <a
+                key={memory.asset}
+                href={memory.coreExplorerUrl || memory.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="grid grid-cols-[4.75rem_1fr] gap-3 rounded-xl border border-white/10 bg-white/[0.045] p-2 transition-colors duration-100 hover:bg-white/[0.075] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7b733] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              >
+                <div className="aspect-square overflow-hidden rounded-lg bg-white/[0.06]">
+                  {memory.imageUri ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={memory.imageUri} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-2xl" aria-hidden="true">
+                      {getCountryFlag(memory.country)}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 py-1">
+                  <p className="line-clamp-1 text-sm font-black text-white">{memory.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs font-bold leading-4 text-white/48">
+                    {memory.note || `${shortAddress(memory.owner)} minted a fan celebration.`}
+                  </p>
+                  <p className="mt-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-white/32">
+                    {shortAddress(memory.owner, 3)} • {formatMemoryTime(memory.mintedAt)}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+    </aside>
+  );
+}
+
 function AtlasCountrySearch({
   value,
   error,
@@ -277,10 +352,13 @@ export function GlobeExperience() {
   const [searchValue, setSearchValue] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [insightCache, setInsightCache] = useState<Record<string, CountryInsight>>({});
+  const [memoryCache, setMemoryCache] = useState<Record<string, MintedMemory[]>>({});
   const [loadingCountry, setLoadingCountry] = useState<string | null>(null);
+  const [loadingMemoriesCountry, setLoadingMemoriesCountry] = useState<string | null>(null);
   const [, setClockTick] = useState(0);
   const activeCountry = hoveredCountry ?? selectedCountry ?? "Argentina";
   const activeInsight = insightCache[activeCountry] ?? insightFallback(activeCountry);
+  const selectedCountryMemories = selectedCountry ? (memoryCache[selectedCountry] ?? []) : [];
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockTick((tick) => tick + 1), 1000);
@@ -329,6 +407,47 @@ export function GlobeExperience() {
       cancelled = true;
     };
   }, [activeCountry, insightCache]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const countryName = selectedCountry;
+
+    if (!countryName || memoryCache[countryName]) return;
+    const memoryCountry = countryName;
+
+    async function loadCountryMemories() {
+      setLoadingMemoriesCountry(memoryCountry);
+
+      try {
+        const response = await fetch(`/api/profile/memories?country=${encodeURIComponent(memoryCountry)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Could not load country memories.");
+        const payload = (await response.json()) as { memories: MintedMemory[] };
+        if (!cancelled) {
+          setMemoryCache((current) => ({
+            ...current,
+            [memoryCountry]: payload.memories,
+          }));
+        }
+      } catch {
+        if (!cancelled) {
+          setMemoryCache((current) => ({
+            ...current,
+            [memoryCountry]: [],
+          }));
+        }
+      } finally {
+        if (!cancelled) setLoadingMemoriesCountry(null);
+      }
+    }
+
+    loadCountryMemories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCountry, memoryCache]);
 
   function handleSearchSubmit() {
     const country = resolveAtlasCountrySearch(searchValue);
@@ -379,6 +498,10 @@ export function GlobeExperience() {
         loading={loadingCountry === activeCountry}
         selected={Boolean(selectedCountry && selectedCountry === activeCountry)}
       />
+
+      {selectedCountry ? (
+        <CountryMemoryRail country={selectedCountry} memories={selectedCountryMemories} loading={loadingMemoriesCountry === selectedCountry} />
+      ) : null}
 
       <AtlasCountrySearch
         value={searchValue}

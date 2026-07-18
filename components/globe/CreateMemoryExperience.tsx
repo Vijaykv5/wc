@@ -4,7 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { COUNTRY_COORDS, resolveAtlasCountrySearch } from "@/lib/atlas-globe-data";
-import { saveMintedMemory } from "@/lib/memory-passport";
+import { persistMintedMemory, saveMintedMemory } from "@/lib/memory-passport";
 import { mintMemoryNft } from "@/lib/memory-nft";
 import { isWalletConnected, walletConnectionMessage } from "@/lib/wallet-status";
 import { AtlasModeSwitch } from "@/components/globe/AtlasModeSwitch";
@@ -61,9 +61,9 @@ export function CreateMemoryExperience({ initialCountry = "Argentina" }: { initi
 
     try {
       setMinting(true);
-      setStatus("Preparing your memory mint...");
+      setStatus("Preparing your memory...");
       const result = await mintMemoryNft({ wallet, title, name, country, note, image, onStatus: setStatus });
-      saveMintedMemory({
+      const mintedMemory = {
         ...result,
         owner: wallet.publicKey?.toBase58() ?? "",
         title,
@@ -71,7 +71,9 @@ export function CreateMemoryExperience({ initialCountry = "Argentina" }: { initi
         country,
         note,
         mintedAt: new Date().toISOString(),
-      });
+      };
+      saveMintedMemory(mintedMemory);
+      void persistMintedMemory(mintedMemory).catch(() => undefined);
       setMintToast({
         title: "Memory minted",
         message: `${country} NFT is live on devnet.`,
@@ -244,11 +246,6 @@ export function CreateMemoryExperience({ initialCountry = "Argentina" }: { initi
             </button>
 
             {status ? <p className="text-center text-sm font-bold text-white/54">{status}</p> : null}
-            {minting ? (
-              <p className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center text-xs font-bold leading-5 text-white/42">
-                Devnet mints can ask for more than one approval because the image upload, metadata upload, and NFT mint are separate steps.
-              </p>
-            ) : null}
             {error ? (
               <p className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-sm font-bold text-red-100">{error}</p>
             ) : null}

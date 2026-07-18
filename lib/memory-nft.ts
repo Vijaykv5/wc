@@ -54,9 +54,9 @@ export async function mintMemoryNft({ wallet, title, name, country, note, image,
     displayName: image.name,
     contentType: image.type || "image/png",
   });
-  onStatus?.("Step 1 of 3: approving and uploading the image...");
+  onStatus?.("Uploading memory...");
   const [imageUri] = await umi.uploader.upload([imageFile]);
-  onStatus?.("Step 2 of 3: uploading NFT metadata...");
+  onStatus?.("Preparing NFT...");
   const metadataUri = await umi.uploader.uploadJson({
     name: title,
     description: note || `${name} minted a ${country} fan memory on Atlas.`,
@@ -73,7 +73,7 @@ export async function mintMemoryNft({ wallet, title, name, country, note, image,
     },
   });
   const asset = generateSigner(umi);
-  onStatus?.("Step 3 of 3: approve the devnet NFT mint...");
+  onStatus?.("Minting memory...");
   const tx = await createV1(umi, {
     asset,
     authority: umi.identity,

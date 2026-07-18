@@ -133,29 +133,42 @@ button:disabled {
   right: 0;
   z-index: 80;
   display: grid;
-  min-width: 11rem;
-  gap: 0.25rem;
-  border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(5, 7, 13, 0.96);
-  padding: 0.45rem;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  min-width: 13rem;
+  gap: 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(247, 183, 51, 0.18);
+  background: rgba(5, 7, 13, 0.97);
+  padding: 0.55rem;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(247, 183, 51, 0.05) inset;
   backdrop-filter: blur(18px);
 }
 
+.atlas-wallet-popover a,
 .atlas-wallet-popover button {
-  min-height: 2.4rem;
-  border-radius: 0.65rem;
-  padding: 0.5rem 0.7rem;
+  display: flex;
+  min-height: 2.65rem;
+  width: 100%;
+  align-items: center;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.85rem;
   color: rgba(255, 255, 255, 0.84);
   text-align: left;
-  transition: background-color 100ms ease-out;
+  transition:
+    background-color 100ms ease-out,
+    color 100ms ease-out,
+    transform 100ms ease-out;
 }
 
+.atlas-wallet-popover a:hover,
 .atlas-wallet-popover button:hover,
+.atlas-wallet-popover a:focus-visible,
 .atlas-wallet-popover button:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(247, 183, 51, 0.14);
+  color: #f7b733;
   outline: none;
+  transform: translateX(2px);
 }
 
 .wallet-adapter-dropdown-list {

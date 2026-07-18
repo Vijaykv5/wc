@@ -37,6 +37,28 @@ export type DbLeaderboardEntry = {
   totalRounds: number;
 };
 
+export type DbFanProfile = {
+  wallet: string;
+  country: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DbMintedMemory = {
+  asset: string;
+  owner: string;
+  title: string;
+  name: string;
+  country: string;
+  note: string;
+  imageUri: string;
+  metadataUri: string;
+  signature: string;
+  explorerUrl: string;
+  coreExplorerUrl: string;
+  mintedAt: string;
+};
+
 const databaseUrl = process.env.DB ?? process.env.DATABASE_URL;
 const sql = databaseUrl ? neon(databaseUrl) : null;
 let schemaReady: Promise<void> | null = null;
@@ -100,6 +122,42 @@ export async function ensureGameSchema() {
     await db`
       create index if not exists round_history_fixture_result_idx
       on round_history (fixture_id, result)
+    `;
+
+    await db`
+      create table if not exists fan_profiles (
+        wallet text primary key,
+        country text not null,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      )
+    `;
+
+    await db`
+      create table if not exists minted_memories (
+        asset text primary key,
+        owner text not null,
+        title text not null,
+        name text not null,
+        country text not null,
+        note text not null default '',
+        image_uri text not null,
+        metadata_uri text not null,
+        signature text not null,
+        explorer_url text not null,
+        core_explorer_url text not null,
+        minted_at timestamptz not null default now()
+      )
+    `;
+
+    await db`
+      create index if not exists minted_memories_owner_minted_idx
+      on minted_memories (owner, minted_at desc)
+    `;
+
+    await db`
+      create index if not exists minted_memories_country_minted_idx
+      on minted_memories (country, minted_at desc)
     `;
   })();
 
@@ -167,5 +225,31 @@ export function toDbLeaderboardEntry(row: Record<string, unknown>): DbLeaderboar
     survivedRounds: asNumber(row.survived_rounds),
     shardRounds: asNumber(row.shard_rounds),
     totalRounds: asNumber(row.total_rounds),
+  };
+}
+
+export function toDbFanProfile(row: Record<string, unknown>): DbFanProfile {
+  return {
+    wallet: asString(row.wallet),
+    country: asString(row.country, "Argentina"),
+    createdAt: asIso(row.created_at),
+    updatedAt: asIso(row.updated_at),
+  };
+}
+
+export function toDbMintedMemory(row: Record<string, unknown>): DbMintedMemory {
+  return {
+    asset: asString(row.asset),
+    owner: asString(row.owner),
+    title: asString(row.title, "Atlas Memory"),
+    name: asString(row.name, "Fan"),
+    country: asString(row.country, "Global"),
+    note: asString(row.note),
+    imageUri: asString(row.image_uri),
+    metadataUri: asString(row.metadata_uri),
+    signature: asString(row.signature),
+    explorerUrl: asString(row.explorer_url),
+    coreExplorerUrl: asString(row.core_explorer_url),
+    mintedAt: asIso(row.minted_at),
   };
 }
