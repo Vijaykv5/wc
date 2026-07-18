@@ -421,7 +421,7 @@ export default function BuilderGlobe({
         const controls = globe.controls();
         if (controls) {
           controls.autoRotate = true;
-          controls.autoRotateSpeed = 0.16;
+          controls.autoRotateSpeed = 0.08;
           controls.enableZoom = true;
           controls.minDistance = 185;
           controls.maxDistance = 360;

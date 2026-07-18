@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { GlobeMethods } from "react-globe.gl";
-import { ATLAS_MEMORIES, getCountryStats } from "@/lib/atlas-globe-data";
+import { ATLAS_MEMORIES, getCountryFanStats, getCountryFlag, normalizeCountry, resolveAtlasCountrySearch } from "@/lib/atlas-globe-data";
+import { AtlasModeSwitch } from "@/components/globe/AtlasModeSwitch";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
 const BuilderGlobe = dynamic(() => import("./BuilderGlobe"), {
@@ -26,12 +27,311 @@ function GlobeLoadingState() {
   );
 }
 
+type CountryFixture = {
+  id: string;
+  home: string;
+  away: string;
+  competition: string;
+  status: string;
+  startTime?: number;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+type CountryInsight = {
+  country: string;
+  flag: string;
+  supporters: number;
+  liveRooms: number;
+  worldCupParticipant: boolean | null;
+  nextMatch: CountryFixture | null;
+  recent: CountryFixture[];
+  upcoming: CountryFixture[];
+  source: "txline" | "unavailable";
+  error?: string;
+};
+
+function formatCompactNumber(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "--";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatCountdown(startTime?: number) {
+  if (!startTime) return "No match";
+  const remaining = Math.max(0, startTime - Date.now());
+  const hours = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1000);
+
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function formatMatchTime(startTime?: number) {
+  if (!startTime) return "Time TBA";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(startTime));
+}
+
+function matchScore(fixture: CountryFixture) {
+  if (fixture.homeScore === null || fixture.awayScore === null) return fixture.status || "Scheduled";
+  return `${fixture.homeScore}-${fixture.awayScore}`;
+}
+
+function insightFallback(country: string): CountryInsight {
+  const normalizedCountry = normalizeCountry(country);
+  const fanStats = getCountryFanStats(normalizedCountry);
+
+  return {
+    country: normalizedCountry,
+    flag: getCountryFlag(normalizedCountry),
+    supporters: fanStats.supporters,
+    liveRooms: fanStats.liveRooms,
+    worldCupParticipant: null,
+    nextMatch: null,
+    recent: [],
+    upcoming: [],
+    source: "unavailable",
+  };
+}
+
+function FixtureRow({ fixture, tone }: { fixture: CountryFixture; tone: "recent" | "upcoming" }) {
+  return (
+    <article className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-white">
+            {fixture.home} <span className="text-white/38">vs</span> {fixture.away}
+          </p>
+          <p className="mt-1 truncate text-xs font-bold text-white/42">{fixture.competition}</p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-1 font-mono text-xs font-black tabular-nums ${
+            tone === "recent" ? "bg-white text-black" : "bg-[#9B45FE]/24 text-[#e9d5ff]"
+          }`}
+        >
+          {matchScore(fixture)}
+        </span>
+      </div>
+      <p className="mt-3 font-mono text-xs font-bold tabular-nums text-white/48">{formatMatchTime(fixture.startTime)}</p>
+    </article>
+  );
+}
+
+function CountryInsightPanel({
+  activeCountry,
+  insight,
+  loading,
+  selected,
+}: {
+  activeCountry: string;
+  insight: CountryInsight;
+  loading: boolean;
+  selected: boolean;
+}) {
+  const nextCountdown = formatCountdown(insight.nextMatch?.startTime);
+  const dataUnavailable = insight.source === "unavailable";
+  const hasNoWorldCupFixtures = insight.worldCupParticipant === false;
+
+  return (
+    <aside className="pointer-events-auto fixed bottom-32 left-4 right-4 z-20 sm:left-auto sm:right-6 sm:w-[25rem] lg:right-8">
+      <section className="rounded-2xl border border-white/12 bg-[#05070d]/62 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl" aria-busy={loading}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-white/44">{selected ? "pinned country" : "hover country"}</p>
+            <h2 className="mt-2 truncate text-2xl font-black uppercase leading-none text-white">
+              {activeCountry} <span aria-hidden="true">{insight.flag}</span>
+            </h2>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+            <p className="font-mono text-lg font-black tabular-nums text-white">{formatCompactNumber(insight.supporters)}</p>
+            <p className="mt-1 text-xs font-bold text-white/42">Supporters</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+            <p className="font-mono text-lg font-black tabular-nums text-white">{insight.liveRooms}</p>
+            <p className="mt-1 text-xs font-bold text-white/42">Fan Rooms</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+            <p className="font-mono text-lg font-black tabular-nums text-white">{nextCountdown}</p>
+            <p className="mt-1 text-xs font-bold text-white/42">Next Match</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="mt-4 grid gap-2">
+            <div className="h-20 animate-pulse rounded-xl bg-white/[0.06]" />
+            <div className="h-20 animate-pulse rounded-xl bg-white/[0.04]" />
+          </div>
+        ) : hasNoWorldCupFixtures ? (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.045] p-4">
+            <p className="text-sm font-black text-white">This country has not participated in the World Cup 2026.</p>
+            {/* <p className="mt-2 text-sm leading-6 text-white/48">Atlas only shows TxLINE-covered World Cup matches here, so friendlies are hidden.</p> */}
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Scheduled Matches</p>
+              </div>
+              <div className="grid gap-2">
+                {insight.upcoming.length > 0 ? (
+                  insight.upcoming.slice(0, 2).map((fixture) => <FixtureRow key={fixture.id} fixture={fixture} tone="upcoming" />)
+                ) : (
+                  <p className="rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-white/50">
+                    {dataUnavailable ? "No live matches right now." : "No scheduled matches."}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Previous Finished Matches</p>
+              </div>
+              <div className="grid gap-2">
+                {insight.recent.length > 0 ? (
+                  insight.recent.slice(0, 2).map((fixture) => <FixtureRow key={fixture.id} fixture={fixture} tone="recent" />)
+                ) : (
+                  <p className="rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-white/50">
+                    No finished TxLINE-covered matches with scorelines.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {insight.error ? <p className="mt-3 text-xs leading-5 text-white/38">{insight.error} Showing current fan activity only.</p> : null}
+      </section>
+    </aside>
+  );
+}
+
+function AtlasCountrySearch({
+  value,
+  error,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  error: string | null;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="pointer-events-auto fixed bottom-5 left-4 right-4 z-30 mx-auto max-w-[36rem]">
+      <div className="rounded-[1.65rem] border border-white/12 bg-black/54 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl ring-1 ring-black">
+        <div className="flex min-h-12 items-center gap-2 rounded-[1.25rem] border border-white/8 bg-white/[0.035] px-4">
+          <label htmlFor="atlas-country-search" className="sr-only">
+            Search country
+          </label>
+          <input
+            id="atlas-country-search"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            autoComplete="country-name"
+            placeholder="Search any country"
+            className="h-10 min-w-0 flex-1 bg-transparent text-sm font-black text-white caret-white outline-none placeholder:text-white/34 sm:text-base"
+          />
+          <button
+            type="submit"
+            className="min-h-10 rounded-[1.1rem] bg-white/12 px-5 text-sm font-black text-white/62 transition-colors duration-100 hover:bg-white/18 hover:text-white active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:px-7"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+      {error ? <p className="mt-2 pl-5 text-sm font-bold text-white/54">{error}</p> : null}
+    </form>
+  );
+}
+
 export function GlobeExperience() {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
-  const stats = useMemo(() => getCountryStats(ATLAS_MEMORIES), []);
-  const selectedHub = selectedCountry ? stats.find((stat) => stat.country === selectedCountry) : null;
+  const [searchValue, setSearchValue] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [insightCache, setInsightCache] = useState<Record<string, CountryInsight>>({});
+  const [loadingCountry, setLoadingCountry] = useState<string | null>(null);
+  const [, setClockTick] = useState(0);
+  const activeCountry = hoveredCountry ?? selectedCountry ?? "Argentina";
+  const activeInsight = insightCache[activeCountry] ?? insightFallback(activeCountry);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockTick((tick) => tick + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const country = activeCountry;
+
+    if (insightCache[country]) return;
+
+    async function loadCountryInsight() {
+      setLoadingCountry(country);
+
+      try {
+        const response = await fetch(`/api/atlas/country?country=${encodeURIComponent(country)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Could not load country data.");
+        const insight = (await response.json()) as CountryInsight;
+        if (!cancelled) {
+          setInsightCache((current) => ({
+            ...current,
+            [country]: insight,
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setInsightCache((current) => ({
+            ...current,
+            [country]: {
+              ...insightFallback(country),
+              error: error instanceof Error ? error.message : "Country data unavailable.",
+            },
+          }));
+        }
+      } finally {
+        if (!cancelled) setLoadingCountry(null);
+      }
+    }
+
+    loadCountryInsight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCountry, insightCache]);
+
+  function handleSearchSubmit() {
+    const country = resolveAtlasCountrySearch(searchValue);
+    if (!country) {
+      setSearchError("Type a full country name, like Argentina.");
+      return;
+    }
+
+    setSearchError(null);
+    setHoveredCountry(null);
+    setSelectedCountry(country);
+    setSearchValue(country);
+  }
 
   return (
     <main className="relative h-svh min-h-[640px] overflow-hidden bg-[#05070d] text-white">
@@ -61,28 +361,24 @@ export function GlobeExperience() {
         </nav>
       </header>
 
-      <section className="pointer-events-none fixed left-4 top-24 z-20 max-w-[18rem] sm:left-6 lg:left-8">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d8b4fe]/74">Atlas globe</p>
-        <h1 className="atlas-display mt-3 text-3xl leading-none text-white sm:text-4xl">Memory orbit</h1>
-        <p className="mt-4 max-w-xs text-sm leading-6 text-white/54">Night earth, live memory points, quiet routes.</p>
-      </section>
+      <AtlasModeSwitch mode="explore" />
 
-      <aside className="pointer-events-none fixed bottom-5 left-4 right-4 z-20 sm:left-auto sm:right-6 sm:w-[22rem] lg:right-8">
-        <div className="rounded-2xl border border-[#d8b4fe]/16 bg-[#05070d]/46 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-white/46">
-              {hoveredCountry ? "hovering" : selectedCountry ? "selected" : "active hubs"}
-            </p>
-            <p className="font-mono text-xs font-black tabular-nums text-[#d8b4fe]/84">{ATLAS_MEMORIES.length}</p>
-          </div>
-          <p className="mt-2 text-2xl font-black leading-tight text-white">{hoveredCountry ?? selectedCountry ?? "Global archive"}</p>
-          <p className="mt-3 text-sm leading-6 text-white/54">
-            {selectedHub
-              ? `${selectedHub.count} ${selectedHub.count === 1 ? "memory" : "memories"} · ${selectedHub.kinds.join(" / ")}`
-              : "Purple countries contain demo memory points and quiet route arcs."}
-          </p>
-        </div>
-      </aside>
+      <CountryInsightPanel
+        activeCountry={activeCountry}
+        insight={activeInsight}
+        loading={loadingCountry === activeCountry}
+        selected={Boolean(selectedCountry && selectedCountry === activeCountry)}
+      />
+
+      <AtlasCountrySearch
+        value={searchValue}
+        error={searchError}
+        onChange={(value) => {
+          setSearchValue(value);
+          if (searchError) setSearchError(null);
+        }}
+        onSubmit={handleSearchSubmit}
+      />
     </main>
   );
 }

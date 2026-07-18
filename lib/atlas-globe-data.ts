@@ -35,6 +35,11 @@ export type CountryStats = {
   };
 };
 
+export type CountryFanStats = {
+  supporters: number;
+  liveRooms: number;
+};
+
 type GeoFeature = {
   properties?: Record<string, unknown>;
 };
@@ -71,6 +76,32 @@ export const COUNTRY_COORDS: Record<string, { lat: number; lng: number }> = {
   "United Kingdom": { lat: 51.5, lng: -0.1 },
   "United States": { lat: 40.7, lng: -74 },
 };
+
+export const COUNTRY_FLAGS: Record<string, string> = {
+  Argentina: "🇦🇷",
+  Australia: "🇦🇺",
+  Brazil: "🇧🇷",
+  Canada: "🇨🇦",
+  France: "🇫🇷",
+  Germany: "🇩🇪",
+  India: "🇮🇳",
+  Indonesia: "🇮🇩",
+  Japan: "🇯🇵",
+  Malaysia: "🇲🇾",
+  Mexico: "🇲🇽",
+  Morocco: "🇲🇦",
+  Nigeria: "🇳🇬",
+  Portugal: "🇵🇹",
+  Qatar: "🇶🇦",
+  Spain: "🇪🇸",
+  "United Arab Emirates": "🇦🇪",
+  "United Kingdom": "🇬🇧",
+  "United States": "🇺🇸",
+};
+
+const COUNTRY_LOOKUP = Object.fromEntries(
+  Array.from(new Set([...Object.keys(COUNTRY_COORDS), ...Object.keys(COUNTRY_FLAGS)])).map((country) => [country.toLowerCase(), country]),
+);
 
 export const ATLAS_MEMORIES: AtlasMemory[] = [
   {
@@ -170,9 +201,34 @@ export const MEMORY_ARCS: MemoryArc[] = [
 ];
 
 export function normalizeCountry(country: string) {
-  const cleaned = country.trim();
+  const cleaned = country.trim().replace(/\s+/g, " ");
   const alias = COUNTRY_ALIASES[cleaned.toLowerCase()];
-  return alias ?? cleaned;
+  const canonicalCountry = COUNTRY_LOOKUP[cleaned.toLowerCase()];
+  return alias ?? canonicalCountry ?? cleaned;
+}
+
+export function resolveAtlasCountrySearch(country: string) {
+  const normalizedCountry = normalizeCountry(country);
+  const lookupKey = normalizedCountry.toLowerCase();
+
+  return COUNTRY_LOOKUP[lookupKey] ?? null;
+}
+
+function countrySeed(country: string) {
+  return Array.from(country).reduce((seed, char) => seed + char.charCodeAt(0), 0);
+}
+
+export function getCountryFlag(country: string) {
+  return COUNTRY_FLAGS[normalizeCountry(country)] ?? "⚽";
+}
+
+export function getCountryFanStats(country: string): CountryFanStats {
+  const seed = countrySeed(normalizeCountry(country));
+
+  return {
+    supporters: 18_400 + ((seed * 137) % 72_000),
+    liveRooms: 1 + (seed % 5),
+  };
 }
 
 export function getGeoCountryName(feature: GeoFeature) {
