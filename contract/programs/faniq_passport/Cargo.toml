@@ -1,0 +1,19 @@
+[package]
+name = "faniq_passport"
+version = "0.1.0"
+description = "FANIQ fan passport and memory registry program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "faniq_passport"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build"]
+default = []
+
+[dependencies]
+anchor-lang = "1.1.2"

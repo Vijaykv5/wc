@@ -293,24 +293,27 @@ export function MatchStoryExperience({ fixtureId }: { fixtureId: string }) {
       </header>
 
       <section className="relative z-10 mx-auto w-full max-w-[92rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-4xl">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f7b733]">TxLINE match coverage</p>
-            <h1 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl">
+        <div className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-[#f7b733]/22 bg-[#05070d]/78 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="pointer-events-none absolute inset-x-0 top-16 h-64 bg-[radial-gradient(circle_at_24%_0%,rgba(247,183,51,0.14),transparent_22rem)]" aria-hidden="true" />
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-4xl">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f7b733]">FANIQ match story</p>
+              <h1 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl">
               {payload?.fixture ? `${payload.fixture.home} vs ${payload.fixture.away}` : "Match data"}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/62">
-              TxLINE historical score sequence summarized into eight match intervals for fixture <span className="font-mono text-white">{fixtureId}</span>.
-            </p>
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/58">
+                A comic-style recap built from verified match signals, turning the final score into quick chapters fans can actually enjoy.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={loading}
+              className="min-h-11 w-fit rounded-full bg-white px-5 text-sm font-black text-black transition-colors hover:bg-[#f3f3f3] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7b733] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              {loading ? "Loading..." : "Refresh"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={loading}
-            className="min-h-11 rounded-full bg-white px-5 text-sm font-black text-black transition-colors hover:bg-[#f3f3f3] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7b733] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-          >
-            {loading ? "Loading..." : "Refresh Data"}
-          </button>
         </div>
 
         {loading ? (

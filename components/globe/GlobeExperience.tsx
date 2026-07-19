@@ -136,7 +136,7 @@ function FixtureRow({ fixture, tone }: { fixture: CountryFixture; tone: "recent"
             href={`/story/match/${encodeURIComponent(fixture.id)}`}
             className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-[#f7b733] px-3 text-xs font-black text-black transition-colors hover:bg-[#fcd34d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            View Data
+            View Story
           </Link>
         ) : null}
       </div>

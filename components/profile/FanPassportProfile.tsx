@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useMemo, useState } from "react";
 import { COUNTRY_COORDS, getCountryFlag, resolveAtlasCountrySearch } from "@/lib/atlas-globe-data";
+import { createFanPassportOnChain, fetchOnChainFanPassport, passportPda } from "@/lib/faniq-passport-program";
 import {
-  fetchFanPassport,
   fetchMintedMemories,
   getFanPassport,
   getMintedMemories,
@@ -48,10 +48,11 @@ function CountryChooser({
   onChoose,
 }: {
   address: string;
-  onChoose: (country: string) => void;
+  onChoose: (country: string) => Promise<void>;
 }) {
   const [countryIndex, setCountryIndex] = useState(0);
   const [query, setQuery] = useState("");
+  const [saving, setSaving] = useState(false);
   const selectedCountry = COUNTRY_OPTIONS[countryIndex] ?? COUNTRY_OPTIONS[0];
   const matches = useMemo(() => {
     const cleaned = query.trim().toLowerCase();
@@ -139,10 +140,14 @@ function CountryChooser({
 
         <button
           type="button"
-          onClick={() => onChoose(selectedCountry)}
+          disabled={saving}
+          onClick={() => {
+            setSaving(true);
+            void onChoose(selectedCountry).finally(() => setSaving(false));
+          }}
           className="min-h-12 rounded-full bg-[#f7b733] px-5 text-sm font-black uppercase tracking-[0.18em] text-black transition-colors duration-100 hover:bg-[#fcd34d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
-          Stamp My Passport
+          {saving ? "Approve Passport..." : "Stamp My Passport"}
         </button>
         <p className="text-center font-mono text-xs font-bold text-white/34">{shortAddress(address)}</p>
       </section>
@@ -151,10 +156,14 @@ function CountryChooser({
 }
 
 export function FanPassportProfile() {
-  const { connected, publicKey } = useWallet();
+  const wallet = useWallet();
+  const { connected, publicKey } = wallet;
   const [copied, setCopied] = useState(false);
   const [choosingCountry, setChoosingCountry] = useState(false);
   const [passport, setPassport] = useState<FanPassport | null>(null);
+  const [passportAddress, setPassportAddress] = useState("");
+  const [passportError, setPassportError] = useState<string | null>(null);
+  const [passportStatus, setPassportStatus] = useState<string | null>(null);
   const [memories, setMemories] = useState<MintedMemory[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingMemories, setLoadingMemories] = useState(false);
@@ -172,6 +181,7 @@ export function FanPassportProfile() {
 
       if (!address) {
         setPassport(null);
+        setPassportAddress("");
         setMemories([]);
         return;
       }
@@ -183,9 +193,25 @@ export function FanPassportProfile() {
       setLoadingProfile(true);
       setLoadingMemories(true);
 
-      void fetchFanPassport(address)
+      void (async () => {
+        const onChainPassport = publicKey ? await fetchOnChainFanPassport(publicKey).catch(() => null) : null;
+        if (onChainPassport) {
+          if (alive) setPassportAddress(onChainPassport.publicKey);
+          const lockedPassport = {
+            owner: address,
+            country: onChainPassport.country,
+            createdAt: onChainPassport.createdAt,
+          };
+          saveFanPassport(lockedPassport);
+          void persistFanPassport(lockedPassport).catch(() => undefined);
+          return lockedPassport;
+        }
+        return null;
+      })()
         .then((profile) => {
-          if (alive) setPassport(profile);
+          if (!alive) return;
+          setPassport(profile);
+          if (!profile && publicKey) setPassportAddress(passportPda(publicKey)[0].toBase58());
         })
         .catch(() => {
           if (alive) setPassport(localPassport);
@@ -213,7 +239,7 @@ export function FanPassportProfile() {
     return () => {
       alive = false;
     };
-  }, [address]);
+  }, [address, publicKey]);
 
   async function copyAddress() {
     if (!address) return;
@@ -222,18 +248,35 @@ export function FanPassportProfile() {
     window.setTimeout(() => setCopied(false), 1400);
   }
 
-  function saveCountry(countryName: string) {
-    const nextPassport = {
-      owner: address,
-      country: countryName,
-      createdAt: new Date().toISOString(),
-    };
-    setPassport(nextPassport);
-    saveFanPassport(nextPassport);
-    void persistFanPassport(nextPassport)
-      .then(setPassport)
-      .catch(() => undefined);
-    setChoosingCountry(false);
+  async function saveCountry(countryName: string) {
+    if (!wallet.publicKey) return;
+    setPassportError(null);
+    setPassportStatus("Preparing passport...");
+
+    try {
+      const result = await createFanPassportOnChain({
+        wallet,
+        country: countryName,
+        onStatus: setPassportStatus,
+      });
+      const nextPassport = {
+        owner: address,
+        country: result.passport.country,
+        createdAt: result.passport.createdAt,
+      };
+      setPassportAddress(result.passport.publicKey);
+      setPassport(nextPassport);
+      saveFanPassport(nextPassport);
+      await persistFanPassport(nextPassport);
+      setChoosingCountry(false);
+      setPassportStatus(result.signature ? "Passport stamped on devnet." : "Loaded your locked passport.");
+      window.setTimeout(() => setPassportStatus(null), 1800);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not stamp passport.";
+      const rejected = /reject|decline|cancel/i.test(message);
+      setPassportStatus(null);
+      setPassportError(rejected ? "Passport stamping cancelled in your wallet." : message);
+    }
   }
 
   return (
@@ -274,6 +317,11 @@ export function FanPassportProfile() {
         ) : (
           <>
             {!loadingProfile && (!passport || choosingCountry) ? <CountryChooser address={address} onChoose={saveCountry} /> : null}
+            {passportStatus || passportError ? (
+              <div className="fixed bottom-5 left-1/2 z-[60] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-[#f7b733]/28 bg-[#08090f]/94 p-3 text-center shadow-2xl shadow-black/60 backdrop-blur-xl">
+                <p className={`text-sm font-black ${passportError ? "text-red-100" : "text-[#f7b733]"}`}>{passportError ?? passportStatus}</p>
+              </div>
+            ) : null}
 
             <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <div className="relative overflow-hidden rounded-[1.75rem] border border-[#f7b733]/32 bg-[#12141b] p-4 shadow-2xl shadow-black/60">
@@ -349,12 +397,12 @@ export function FanPassportProfile() {
                     </span>
                   </div>
                   <a
-                    href={`https://explorer.solana.com/address/${address}?cluster=devnet`}
+                    href={`https://explorer.solana.com/address/${passportAddress || address}?cluster=devnet`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.045] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition-colors duration-100 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7b733] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                   >
-                    View Wallet on Explorer
+                    View Passport on Explorer
                   </a>
                 </div>
 
@@ -384,13 +432,10 @@ export function FanPassportProfile() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setChoosingCountry(true)}
-                  className="min-h-10 rounded-full border border-[#f7b733]/20 bg-[#f7b733]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#f7b733] transition-colors duration-100 hover:bg-[#f7b733]/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7b733] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                >
-                  Change Country
-                </button>
+                <div className="rounded-2xl border border-[#f7b733]/20 bg-[#f7b733]/10 px-4 py-3 text-center">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-[#f7b733]">Country Locked On-Chain</p>
+                  <p className="mt-1 text-xs font-bold leading-5 text-white/46">Your supporter country cannot be changed after passport creation.</p>
+                </div>
               </aside>
             </section>
 
