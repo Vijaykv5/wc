@@ -568,6 +568,31 @@ export function createFallbackIntervalSummaries({
   fixture: MatchStoryFixture | null;
   timeline: MatchTimelineItem[];
 }): IntervalSummary[] {
+  if (fixture?.homeScore !== null && fixture?.homeScore !== undefined && fixture?.awayScore !== null && fixture?.awayScore !== undefined && timeline.length === 0) {
+    const finalScore = `${fixture.homeScore}-${fixture.awayScore}`;
+    const teams = `${fixture.home} vs ${fixture.away}`;
+    const scoreOnlyChapters = [
+      ["Kickoff", `${teams} began with the scoreboard still level. Detailed event coverage was not published for the opening spell.`, "quiet"],
+      ["First-half battle", `The match moved toward halftime with only the final score available from coverage. No verified scorer, card, or substitution details were published.`, "pressure"],
+      ["Scoreboard story", `The final score shows a ${finalScore} result, but the feed does not include the exact goal sequence or player names for this fixture.`, "turning-point"],
+      ["Second-half fight", `Both sides finished locked into the same final story: ${fixture.home} ${fixture.homeScore}, ${fixture.away} ${fixture.awayScore}.`, "pressure"],
+      ["Final push", `Without published event details, this chapter stays score-based rather than inventing moments that are not in the feed.`, "final"],
+      ["Full time", `${teams} ended ${finalScore}. This recap can become richer if TxLINE publishes historical events for the fixture later.`, "final"],
+    ] as const;
+
+    return scoreOnlyChapters.map(([headline, summary, tone], index) => ({
+      interval: index === 5 ? "Full time" : MATCH_INTERVALS[index] ? intervalLabel(MATCH_INTERVALS[index][0], MATCH_INTERVALS[index][1]) : `Chapter ${index + 1}`,
+      minuteStart: MATCH_INTERVALS[index]?.[0] ?? 90,
+      minuteEnd: MATCH_INTERVALS[index]?.[1] ?? 90,
+      headline,
+      summary,
+      keyEvents: index === 5 ? [`Final score ${finalScore}`] : [],
+      score: finalScore,
+      tone,
+      source: "fallback",
+    }));
+  }
+
   let lastScore = "0-0";
 
   return MATCH_INTERVALS.map(([start, end], index) => {

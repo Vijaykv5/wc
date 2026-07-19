@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
 type MatchFixture = {
@@ -133,7 +133,7 @@ function DataSkeleton() {
   );
 }
 
-function ScoreboardHero({ fixture, stats, totalRecords, timelineCount }: { fixture: MatchFixture | null; stats: MatchStatSummary; totalRecords: number; timelineCount: number }) {
+function ScoreboardHero({ fixture, stats }: { fixture: MatchFixture | null; stats: MatchStatSummary }) {
   const statRows = [
     ["Goals", stats.goals],
     ["Yellow cards", stats.yellowCards],
@@ -142,41 +142,35 @@ function ScoreboardHero({ fixture, stats, totalRecords, timelineCount }: { fixtu
   ] as const;
 
   return (
-    <section className="relative overflow-hidden rounded-[1.75rem] border border-[#f7b733]/26 bg-[#05070d]/82 p-5 shadow-2xl shadow-black/50 backdrop-blur-xl">
+    <section className="relative overflow-hidden rounded-[1.75rem] border border-[#f7b733]/24 bg-[#05070d]/82 p-5 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(247,183,51,0.18),transparent_22rem),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_38%)]" />
-      <div className="relative grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f7b733]">{fixture?.competition ?? "TxLINE Fixture"}</p>
-          <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="min-w-0 text-right">
-              <p className="truncate text-3xl font-black text-white sm:text-4xl">{fixture?.home ?? "Home"}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-white px-4 py-3 text-center shadow-[0_0_50px_rgba(247,183,51,0.16)]">
-              <p className="font-mono text-3xl font-black text-black sm:text-4xl">{scoreLabel(fixture)}</p>
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-3xl font-black text-white sm:text-4xl">{fixture?.away ?? "Away"}</p>
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 font-mono text-xs font-black text-white/62">
-              Fixture {fixture?.id ?? "unknown"}
+      <div className="relative grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-center">
+        <div className="grid gap-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-[#f7b733]/28 bg-[#f7b733]/12 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-[#f7b733]">
+              {fixture?.competition ?? "World Cup"}
             </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 font-mono text-xs font-black text-white/62">
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 font-mono text-xs font-black text-white/56">
               {formatDate(fixture?.startTime)}
             </span>
-            <span className="rounded-full border border-[#f7b733]/26 bg-[#f7b733]/12 px-3 py-1.5 text-xs font-black text-[#f7b733]">
-              {totalRecords} TxLINE records
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-black text-white/62">
-              {timelineCount} readable events
-            </span>
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-3xl font-black text-white sm:text-5xl">{fixture?.home ?? "Home"}</p>
+            </div>
+            <div className="rounded-[1.35rem] border border-white/12 bg-white px-4 py-3 text-center shadow-[0_0_50px_rgba(247,183,51,0.16)] sm:px-5">
+              <p className="font-mono text-3xl font-black text-black sm:text-5xl">{scoreLabel(fixture)}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-3xl font-black text-white sm:text-5xl">{fixture?.away ?? "Away"}</p>
+            </div>
           </div>
         </div>
 
         <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/24 p-3">
           {statRows.map(([label, values]) => (
-            <div key={label} className="grid grid-cols-[4rem_1fr_4rem] items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2">
+            <div key={label} className="grid grid-cols-[4rem_1fr_4rem] items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-3">
               <p className="text-right font-mono text-lg font-black text-white">{statValue(values[0])}</p>
               <p className="text-center text-xs font-black uppercase tracking-[0.16em] text-white/46">{label}</p>
               <p className="font-mono text-lg font-black text-white">{statValue(values[1])}</p>
@@ -198,27 +192,39 @@ function toneClass(tone: IntervalSummary["tone"]) {
 
 function IntervalSummarySection({ intervals }: { intervals: IntervalSummary[] }) {
   const safeIntervals = Array.isArray(intervals) ? intervals : [];
+  const hasMeaningfulMoments = safeIntervals.some((interval) => {
+    const text = `${interval.headline} ${interval.summary} ${(interval.keyEvents ?? []).join(" ")}`.toLowerCase();
+    return !/no major event|calm start|quiet/.test(text);
+  });
 
   return (
-    <section className="rounded-3xl border border-[#f7b733]/20 bg-[#05070d]/76 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
+    <section className="rounded-3xl border border-[#f7b733]/20 bg-[#05070d]/76 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f7b733]">OpenRouter interval recap</p>
-          <h2 className="mt-1 text-2xl font-black text-white">The match in 15-minute chapters</h2>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f7b733]">Match chapters</p>
+          <h2 className="mt-1 text-2xl font-black text-white">How the match moved</h2>
         </div>
         <span className="w-fit rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 font-mono text-xs font-black text-white/64">
-          {safeIntervals.length} intervals
+          {safeIntervals.length} chapters
         </span>
       </div>
 
       {safeIntervals.length === 0 ? (
         <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm font-bold text-white/50">
-          No interval summaries yet.
+          No match chapters are available yet.
         </p>
+      ) : !hasMeaningfulMoments ? (
+        <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_20%_0%,rgba(247,183,51,0.12),transparent_18rem),rgba(255,255,255,0.035)] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f7b733]">Quiet match feed</p>
+          <h3 className="mt-2 text-2xl font-black text-white">No major moments were published for this fixture.</h3>
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-white/54">
+            There are no published goals, cards, substitutions, injuries, penalties, or VAR moments to turn into chapters yet.
+          </p>
+        </div>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {safeIntervals.map((interval) => (
-            <article key={interval.interval} className={`rounded-2xl border p-4 ${toneClass(interval.tone)}`}>
+            <article key={interval.interval} className={`rounded-2xl border p-4 shadow-xl shadow-black/20 ${toneClass(interval.tone)}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-mono text-xs font-black uppercase tracking-[0.16em] opacity-70">{interval.interval}</p>
@@ -227,16 +233,18 @@ function IntervalSummarySection({ intervals }: { intervals: IntervalSummary[] })
                 <span className="shrink-0 rounded-full bg-white px-2.5 py-1 font-mono text-xs font-black text-black">{interval.score || "--"}</span>
               </div>
               <p className="mt-3 text-sm leading-6 text-white/68">{interval.summary}</p>
-              {(interval.keyEvents ?? []).length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {(interval.keyEvents ?? []).map((event, eventIndex) => (
-                    <span key={`${interval.interval}-${eventIndex}-${event}`} className="rounded-full border border-white/10 bg-black/18 px-2.5 py-1 text-xs font-bold text-white/56">
-                      {event}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-white/34">{interval.source}</p>
+              {(() => {
+                const visibleEvents = (interval.keyEvents ?? []).filter((event) => !/no major event was published/i.test(event));
+                return visibleEvents.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {visibleEvents.map((event, eventIndex) => (
+                      <span key={`${interval.interval}-${eventIndex}-${event}`} className="rounded-full border border-white/10 bg-black/18 px-2.5 py-1 text-xs font-bold text-white/56">
+                        {event}
+                      </span>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
             </article>
           ))}
         </div>
@@ -249,7 +257,6 @@ export function MatchStoryExperience({ fixtureId }: { fixtureId: string }) {
   const [payload, setPayload] = useState<MatchDataPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const totalRecords = useMemo(() => payload?.coverage.reduce((sum, block) => sum + (block.records ?? []).length, 0) ?? 0, [payload]);
 
   async function loadData() {
     setLoading(true);
@@ -293,17 +300,14 @@ export function MatchStoryExperience({ fixtureId }: { fixtureId: string }) {
       </header>
 
       <section className="relative z-10 mx-auto w-full max-w-[92rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-[#f7b733]/22 bg-[#05070d]/78 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl">
-          <div className="pointer-events-none absolute inset-x-0 top-16 h-64 bg-[radial-gradient(circle_at_24%_0%,rgba(247,183,51,0.14),transparent_22rem)]" aria-hidden="true" />
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative mb-5 overflow-hidden rounded-[1.75rem] border border-[#f7b733]/22 bg-[#05070d]/78 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6">
+          <div className="pointer-events-none absolute inset-x-0 top-10 h-64 bg-[radial-gradient(circle_at_24%_0%,rgba(247,183,51,0.14),transparent_22rem)]" aria-hidden="true" />
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f7b733]">FANIQ match story</p>
               <h1 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl">
               {payload?.fixture ? `${payload.fixture.home} vs ${payload.fixture.away}` : "Match data"}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/58">
-                A comic-style recap built from verified match signals, turning the final score into quick chapters fans can actually enjoy.
-              </p>
             </div>
             <button
               type="button"
@@ -336,7 +340,7 @@ export function MatchStoryExperience({ fixtureId }: { fixtureId: string }) {
         ) : payload ? (
           <div className="grid gap-4">
             <div className="grid gap-4">
-              <ScoreboardHero fixture={payload.fixture} stats={payload.stats} totalRecords={totalRecords} timelineCount={payload.timeline.length} />
+              <ScoreboardHero fixture={payload.fixture} stats={payload.stats} />
 
               <IntervalSummarySection intervals={payload.intervals} />
             </div>
