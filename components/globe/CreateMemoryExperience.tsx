@@ -8,6 +8,7 @@ import { fetchOnChainFanPassport } from "@/lib/faniq-passport-program";
 import { persistMintedMemory, saveMintedMemory, shortAddress } from "@/lib/memory-passport";
 import { mintMemoryNft } from "@/lib/memory-nft";
 import { isWalletConnected, walletConnectionMessage } from "@/lib/wallet-status";
+import { FaniqMusicButton } from "@/components/audio/FaniqMusicButton";
 import { AtlasModeSwitch } from "@/components/globe/AtlasModeSwitch";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
@@ -150,7 +151,10 @@ export function CreateMemoryExperience({ initialCountry = "Argentina" }: { initi
             <span className="atlas-logo-mark" aria-hidden="true" />
             <span className="text-base font-black lowercase tracking-tight text-white">FANIQ</span>
           </Link>
-          <SolanaWalletButton />
+          <div className="flex items-center gap-2">
+            <FaniqMusicButton />
+            <SolanaWalletButton />
+          </div>
         </nav>
       </header>
 

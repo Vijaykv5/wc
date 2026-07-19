@@ -15,6 +15,7 @@ import {
   type FanPassport,
   type MintedMemory,
 } from "@/lib/memory-passport";
+import { FaniqMusicButton } from "@/components/audio/FaniqMusicButton";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
 const COUNTRY_OPTIONS = Object.keys(COUNTRY_COORDS);
@@ -296,7 +297,10 @@ export function FanPassportProfile() {
             <span className="atlas-logo-mark" aria-hidden="true" />
             <span className="text-base font-black lowercase tracking-tight text-white">FANIQ</span>
           </Link>
-          <SolanaWalletButton />
+          <div className="flex items-center gap-2">
+            <FaniqMusicButton />
+            <SolanaWalletButton />
+          </div>
         </nav>
       </header>
 

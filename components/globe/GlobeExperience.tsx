@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { GlobeMethods } from "react-globe.gl";
 import { ATLAS_MEMORIES, getCountryFanStats, getCountryFlag, normalizeCountry, resolveAtlasCountrySearch } from "@/lib/atlas-globe-data";
 import { shortAddress, type MintedMemory } from "@/lib/memory-passport";
+import { FaniqMusicButton } from "@/components/audio/FaniqMusicButton";
 import { AtlasModeSwitch } from "@/components/globe/AtlasModeSwitch";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
@@ -497,7 +498,10 @@ export function GlobeExperience() {
             <span className="atlas-logo-mark" aria-hidden="true" />
             <span className="text-base font-black lowercase tracking-tight text-white">FANIQ</span>
           </Link>
-          <SolanaWalletButton />
+          <div className="flex items-center gap-2">
+            <FaniqMusicButton />
+            <SolanaWalletButton />
+          </div>
         </nav>
       </header>
 

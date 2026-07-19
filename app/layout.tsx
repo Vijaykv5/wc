@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "FANIQ | Live World Cup Fan Energy",
   description: "Explore a living football globe where countries glow with fan reactions, predictions, chants, and match-room energy.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

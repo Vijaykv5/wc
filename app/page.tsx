@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { FifaScoreStrip } from "./components/fifa-score-strip";
+import { FaniqMusicButton } from "@/components/audio/FaniqMusicButton";
 import { SolanaWalletButton } from "@/components/wallet/SolanaWalletButton";
 
 const steps = [
@@ -41,7 +42,10 @@ function Navbar() {
         >
           How it works
         </a>
-        <SolanaWalletButton />
+        <div className="flex items-center gap-2">
+          <FaniqMusicButton />
+          <SolanaWalletButton />
+        </div>
       </nav>
     </header>
   );
